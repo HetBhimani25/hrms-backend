@@ -47,7 +47,7 @@ public class ManagerManagementService {
         profile.setUser(user);
         profile.setFullName(request.getFullName());
         profile.setPhone(request.getPhone());
-        profile.setDepartment(request.getDepartment());
+        profile.setDepartment(request.getDepartment() == null || request.getDepartment().isBlank() ? "Human Resource" : request.getDepartment());
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
         profile.setEmployeeCode("MANAGER-" + System.currentTimeMillis());
@@ -95,6 +95,11 @@ public class ManagerManagementService {
 
         ManagerProfile profile = managerProfileRepository.findById(managerId)
                 .orElseThrow(() -> new RuntimeException("MANAGER not found"));
+
+        if (!profile.getUser().getEmail().equals(request.getEmail())
+                && userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
 
         if (profile.getStatus() == ManagerStatus.INACTIVE) {
             throw new RuntimeException("Cannot update inactive MANAGER");

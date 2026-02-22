@@ -1,10 +1,10 @@
 package com.example.hrms.service;
 
-import com.example.hrms.dto.hr.HrCreateRequest;
-import com.example.hrms.dto.hr.HrResponse;
-import com.example.hrms.dto.hr.HrUpdateRequest;
+import com.example.hrms.dto.employee.EmployeeCreateRequest;
+import com.example.hrms.dto.employee.EmployeeResponse;
+import com.example.hrms.dto.employee.EmployeeUpdateRequest;
 import com.example.hrms.entity.*;
-import com.example.hrms.repository.HrProfileRepository;
+import com.example.hrms.repository.EmployeeProfileRepository;
 import com.example.hrms.repository.RoleRepository;
 import com.example.hrms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,89 +19,73 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class HrManagementService {
+public class EmployeeManagementService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final HrProfileRepository hrProfileRepository;
+    private final EmployeeProfileRepository employeeProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public HrResponse createHr(HrCreateRequest request) {
+    public EmployeeResponse createEmployee(EmployeeCreateRequest request) {
 
-        System.out.println("-- CREATE HR API HIT --");
+        System.out.println("-- CREATE Employee API HIT --");
         System.out.println("Email: " + request.getEmail());
 
         if (userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("Email already exists");
 
-        Role hrRole = roleRepository.findByRoleName("ROLE_HR").orElseThrow(() -> new RuntimeException("ROLE_HR not found"));
+        Role employeeRole = roleRepository.findByRoleName("ROLE_EMPLOYEE").orElseThrow(() -> new RuntimeException("ROLE_EMPLOYEE not found"));
 
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEnabled(true);
-        user.getRoles().add(hrRole);
+        user.getRoles().add(employeeRole);
 
         user =  userRepository.save(user);
         System.out.println("-- User saved with ID: " + user.getId() + " --");
 
-        HrProfile profile = new HrProfile();
+        EmployeeProfile profile = new EmployeeProfile();
         profile.setUser(user);
         profile.setFullName(request.getFullName());
         profile.setPhone(request.getPhone());
-        profile.setDepartment(
-                request.getDepartment() == null || request.getDepartment().isBlank()
-                        ? "Human Resource"
-                        : request.getDepartment()
-        );
+        profile.setDepartment(request.getDepartment());
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
-        profile.setEmployeeCode("HR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        profile.setStatus(HrStatus.ACTIVE);
+        profile.setEmployeeCode("EMP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        profile.setStatus(EmployeeStatus.ACTIVE);
         profile.setCreatedAt(Instant.now());
         profile.setUpdatedAt(Instant.now());
 
-//        HrProfile profile = new HrProfile();
-//        profile.setUser(user);
-//        profile.setFullName(request.getFullName());
-//        profile.setPhone(request.getPhone());
-//        profile.setDepartment(request.getDepartment());
-//        profile.setDesignation(request.getDesignation());
-//        profile.setJoiningDate(request.getJoiningDate());
-//        profile.setEmployeeCode(generateEmployeeCode());
-//        profile.setStatus(HrStatus.ACTIVE);
-//        profile.setCreatedAt(Instant.now());
-//        profile.setUpdatedAt(Instant.now());
-
-        hrProfileRepository.save(profile);
-        System.out.println("-- HR Profile saved --");
+        employeeProfileRepository.save(profile);
+        System.out.println("-- Employee Profile saved --");
 
         return mapToResponse(profile);
     }
 
     @Transactional(readOnly = true)
-    public List<HrResponse> getAllHrs() {
-        return hrProfileRepository.findAll().stream().map(this::mapToResponse).toList();
+    public List<EmployeeResponse> getAllEmployees() {
+        return employeeProfileRepository.findAll().stream().map(this::mapToResponse).toList();
     }
 
     @Transactional(readOnly = true)
-    public HrResponse getHrById(Long id) {
-        HrProfile profile = hrProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("HR not found"));
+    public EmployeeResponse getEmployeeById(Long id) {
+        EmployeeProfile profile = employeeProfileRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
         return mapToResponse(profile);
     }
 
-    public HrResponse updateHr(Long hrId, HrUpdateRequest request) {
+    public EmployeeResponse updateEmployee(Long employeeId, EmployeeUpdateRequest request) {
 
-        HrProfile profile = hrProfileRepository.findById(hrId)
-                .orElseThrow(() -> new RuntimeException("HR not found"));
+        EmployeeProfile profile = employeeProfileRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         if (!profile.getUser().getEmail().equals(request.getEmail())
                 && userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
 
-        if (profile.getStatus() == HrStatus.INACTIVE) {
-            throw new RuntimeException("Cannot update inactive HR");
+        if (profile.getStatus() == EmployeeStatus.INACTIVE) {
+            throw new RuntimeException("Cannot update inactive Employee");
         }
 
         profile.getUser().setEmail(request.getEmail());
@@ -112,35 +96,34 @@ public class HrManagementService {
         profile.setJoiningDate(request.getJoiningDate());
         profile.setUpdatedAt(Instant.now());
 
-        hrProfileRepository.save(profile);
+        employeeProfileRepository.save(profile);
         return mapToResponse(profile);
     }
 
-    public void disableHr(Long hrId) {
+    public void disableEmployee(Long employeeId) {
 
-        HrProfile profile = hrProfileRepository.findById(hrId)
-                .orElseThrow(() -> new RuntimeException("HR not found"));
+        EmployeeProfile profile = employeeProfileRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        profile.setStatus(HrStatus.DISABLED);
+        profile.setStatus(EmployeeStatus.DISABLED);
         profile.getUser().setEnabled(false);
-//        profile.setUpdatedAt(Instant.now());
 
         User user = profile.getUser();
         user.setEnabled(false);
 
-        hrProfileRepository.save(profile);
+        employeeProfileRepository.save(profile);
         userRepository.save(user);
 
 //        profile.getUser().setEnabled(false);
     }
 
-    public void deleteHr(Long id) {
+    public void deleteEmployee(Long id) {
 
-        HrProfile profile = hrProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("HR not found"));
+        EmployeeProfile profile = employeeProfileRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         User user = profile.getUser();
-        hrProfileRepository.delete(profile);
+        employeeProfileRepository.delete(profile);
         userRepository.delete(user);
 
 //        hrProfileRepository.delete(profile);
@@ -151,8 +134,8 @@ public class HrManagementService {
 //        return "HR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 //    }
 
-    private HrResponse mapToResponse(HrProfile profile) {
-        HrResponse response = new HrResponse();
+    private EmployeeResponse mapToResponse(EmployeeProfile profile) {
+        EmployeeResponse response = new EmployeeResponse();
         response.setId(profile.getId());
         response.setEmail(profile.getUser().getEmail());
         response.setEnabled(profile.getUser().isEnabled());
@@ -165,4 +148,5 @@ public class HrManagementService {
         response.setStatus(profile.getStatus().toString());
         return response;
     }
+
 }

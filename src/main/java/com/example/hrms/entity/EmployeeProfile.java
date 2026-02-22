@@ -3,15 +3,16 @@ package com.example.hrms.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.Id;
 
 import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "manager_profiles")
+@Table(name = "employee_profiles")
 @Getter
 @Setter
-public class ManagerProfile {
+public class EmployeeProfile {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,7 +37,8 @@ public class ManagerProfile {
     private LocalDate joiningDate;
 
     @Enumerated(EnumType.STRING)
-    private ManagerStatus status;
+    @Column(nullable = false)
+    private EmployeeStatus status;
 
     private Instant createdAt;
 
@@ -52,4 +54,5 @@ public class ManagerProfile {
     protected void onUpdate() {
         updatedAt = Instant.now();
     }
+
 }
