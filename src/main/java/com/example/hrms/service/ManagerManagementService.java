@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -50,8 +51,8 @@ public class ManagerManagementService {
         profile.setDepartment(request.getDepartment() == null || request.getDepartment().isBlank() ? "Human Resource" : request.getDepartment());
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
-        profile.setEmployeeCode("MANAGER-" + System.currentTimeMillis());
-        profile.setStatus(ManagerStatus.ACTIVE);
+        profile.setEmployeeCode("MGR-" + UUID.randomUUID().toString().substring(0,8).toUpperCase());
+        profile.setStatus(UserStatus.ACTIVE);
         profile.setCreatedAt(Instant.now());
         profile.setUpdatedAt(Instant.now());
 
@@ -101,7 +102,7 @@ public class ManagerManagementService {
             throw new RuntimeException("Email already exists");
         }
 
-        if (profile.getStatus() == ManagerStatus.INACTIVE) {
+        if (profile.getStatus() == UserStatus.INACTIVE) {
             throw new RuntimeException("Cannot update inactive MANAGER");
         }
 
@@ -121,7 +122,7 @@ public class ManagerManagementService {
         ManagerProfile profile = managerProfileRepository.findById(managerId)
                 .orElseThrow(() -> new RuntimeException("MANAGER not found"));
 
-        profile.setStatus(ManagerStatus.DISABLED);
+        profile.setStatus(UserStatus.DISABLED);
         profile.setUpdatedAt(Instant.now());
 
         User user = profile.getUser();
@@ -139,11 +140,12 @@ public class ManagerManagementService {
                 .orElseThrow(() -> new RuntimeException("HR not found"));
 
         User user = profile.getUser();
-        managerProfileRepository.delete(profile);
-        userRepository.delete(user);
 
-//        hrProfileRepository.delete(profile);
-//        userRepository.delete(profile.getUser());
+        profile.setStatus(UserStatus.DISABLED);
+        user.setEnabled(false);
+
+        managerProfileRepository.save(profile);
+        userRepository.save(user);
     }
 //
 //    private String generateEmployeeCode() {

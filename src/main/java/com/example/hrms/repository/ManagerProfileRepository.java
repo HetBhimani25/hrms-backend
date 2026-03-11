@@ -9,9 +9,9 @@ public interface ManagerProfileRepository extends JpaRepository<ManagerProfile, 
 
     Optional<ManagerProfile> findByUser(User user);
 
-    long countByStatus(ManagerStatus status);
+    long countByStatus(UserStatus status);
 
     Optional<ManagerProfile> findByEmployeeCode(String employeeCode);
 
-    Optional<ManagerProfile> findByIdAndStatus(Long id, ManagerStatus status);
+    Optional<ManagerProfile> findByIdAndStatus(Long id, UserStatus status);
 }

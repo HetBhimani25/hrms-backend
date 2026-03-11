@@ -55,8 +55,8 @@ public class HrManagementService {
         );
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
-        profile.setEmployeeCode("HR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        profile.setStatus(HrStatus.ACTIVE);
+        profile.setEmployeeCode("HR-" + UUID.randomUUID().toString().substring(0,8).toUpperCase());
+        profile.setStatus(UserStatus.ACTIVE);
         profile.setCreatedAt(Instant.now());
         profile.setUpdatedAt(Instant.now());
 
@@ -100,7 +100,7 @@ public class HrManagementService {
             throw new RuntimeException("Email already exists");
         }
 
-        if (profile.getStatus() == HrStatus.INACTIVE) {
+        if (profile.getStatus() == UserStatus.INACTIVE) {
             throw new RuntimeException("Cannot update inactive HR");
         }
 
@@ -121,7 +121,7 @@ public class HrManagementService {
         HrProfile profile = hrProfileRepository.findById(hrId)
                 .orElseThrow(() -> new RuntimeException("HR not found"));
 
-        profile.setStatus(HrStatus.DISABLED);
+        profile.setStatus(UserStatus.DISABLED);
         profile.getUser().setEnabled(false);
 //        profile.setUpdatedAt(Instant.now());
 
@@ -140,11 +140,11 @@ public class HrManagementService {
                 .orElseThrow(() -> new RuntimeException("HR not found"));
 
         User user = profile.getUser();
-        hrProfileRepository.delete(profile);
-        userRepository.delete(user);
+        profile.setStatus(UserStatus.DISABLED);
+        user.setEnabled(false);
 
-//        hrProfileRepository.delete(profile);
-//        userRepository.delete(profile.getUser());
+        hrProfileRepository.save(profile);
+        userRepository.save(user);
     }
 //
 //    private String generateEmployeeCode() {

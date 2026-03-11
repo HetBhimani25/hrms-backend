@@ -1,6 +1,6 @@
 package com.example.hrms.entity;
 
-public enum HrStatus {
+public enum UserStatus {
     ACTIVE,
     INACTIVE,
     DISABLED

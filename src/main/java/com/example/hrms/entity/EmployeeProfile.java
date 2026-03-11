@@ -3,13 +3,16 @@ package com.example.hrms.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
 
 import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "employee_profiles")
+@Table(
+        name = "employee_profiles",
+        indexes = {
+                @Index(name="idx_employee_code_emp", columnList="employeeCode")
+        })
 @Getter
 @Setter
 public class EmployeeProfile {
@@ -19,7 +22,7 @@ public class EmployeeProfile {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "user_id" , nullable = false , unique = true)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
     private String fullName;
@@ -38,10 +41,9 @@ public class EmployeeProfile {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private EmployeeStatus status;
+    private UserStatus status;
 
     private Instant createdAt;
-
     private Instant updatedAt;
 
     @PrePersist
@@ -54,5 +56,4 @@ public class EmployeeProfile {
     protected void onUpdate() {
         updatedAt = Instant.now();
     }
-
 }

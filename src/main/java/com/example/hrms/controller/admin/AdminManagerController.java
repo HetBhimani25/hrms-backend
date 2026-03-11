@@ -4,6 +4,7 @@ import com.example.hrms.dto.manager.ManagerCreateRequest;
 import com.example.hrms.dto.manager.ManagerResponse;
 import com.example.hrms.dto.manager.ManagerUpdateRequest;
 import com.example.hrms.service.ManagerManagementService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class AdminManagerController {
     private final ManagerManagementService managerManagementService;
 
     @PostMapping("/create")
-    public ResponseEntity<ManagerResponse> createManager(@RequestBody ManagerCreateRequest request) {
+    public ResponseEntity<ManagerResponse> createManager(@Valid @RequestBody ManagerCreateRequest request) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(managerManagementService.createManager(request));

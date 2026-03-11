@@ -12,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,12 +27,11 @@ public class EmployeeManagementService {
 
     public EmployeeResponse createEmployee(EmployeeCreateRequest request) {
 
-        System.out.println("-- CREATE Employee API HIT --");
-        System.out.println("Email: " + request.getEmail());
+        if (userRepository.existsByEmail(request.getEmail()))
+            throw new RuntimeException("Email already exists");
 
-        if (userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("Email already exists");
-
-        Role employeeRole = roleRepository.findByRoleName("ROLE_EMPLOYEE").orElseThrow(() -> new RuntimeException("ROLE_EMPLOYEE not found"));
+        Role employeeRole = roleRepository.findByRoleName("ROLE_EMPLOYEE")
+                .orElseThrow(() -> new RuntimeException("ROLE_EMPLOYEE not found"));
 
         User user = new User();
         user.setEmail(request.getEmail());
@@ -41,8 +39,7 @@ public class EmployeeManagementService {
         user.setEnabled(true);
         user.getRoles().add(employeeRole);
 
-        user =  userRepository.save(user);
-        System.out.println("-- User saved with ID: " + user.getId() + " --");
+        user = userRepository.save(user);
 
         EmployeeProfile profile = new EmployeeProfile();
         profile.setUser(user);
@@ -52,25 +49,26 @@ public class EmployeeManagementService {
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
         profile.setEmployeeCode("EMP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        profile.setStatus(EmployeeStatus.ACTIVE);
-        profile.setCreatedAt(Instant.now());
-        profile.setUpdatedAt(Instant.now());
+        profile.setStatus(UserStatus.ACTIVE);
 
         employeeProfileRepository.save(profile);
-        System.out.println("-- Employee Profile saved --");
 
         return mapToResponse(profile);
     }
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> getAllEmployees() {
-        return employeeProfileRepository.findAll().stream().map(this::mapToResponse).toList();
+        return employeeProfileRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public EmployeeResponse getEmployeeById(Long id) {
         EmployeeProfile profile = employeeProfileRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
+
         return mapToResponse(profile);
     }
 
@@ -84,8 +82,8 @@ public class EmployeeManagementService {
             throw new RuntimeException("Email already exists");
         }
 
-        if (profile.getStatus() == EmployeeStatus.INACTIVE) {
-            throw new RuntimeException("Cannot update inactive Employee");
+        if (profile.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Only ACTIVE employees can be updated");
         }
 
         profile.getUser().setEmail(request.getEmail());
@@ -94,9 +92,9 @@ public class EmployeeManagementService {
         profile.setDepartment(request.getDepartment());
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
-        profile.setUpdatedAt(Instant.now());
 
         employeeProfileRepository.save(profile);
+
         return mapToResponse(profile);
     }
 
@@ -105,16 +103,13 @@ public class EmployeeManagementService {
         EmployeeProfile profile = employeeProfileRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        profile.setStatus(EmployeeStatus.DISABLED);
-        profile.getUser().setEnabled(false);
-
         User user = profile.getUser();
+
+        profile.setStatus(UserStatus.DISABLED);
         user.setEnabled(false);
 
         employeeProfileRepository.save(profile);
         userRepository.save(user);
-
-//        profile.getUser().setEnabled(false);
     }
 
     public void deleteEmployee(Long id) {
@@ -123,16 +118,13 @@ public class EmployeeManagementService {
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         User user = profile.getUser();
-        employeeProfileRepository.delete(profile);
-        userRepository.delete(user);
 
-//        hrProfileRepository.delete(profile);
-//        userRepository.delete(profile.getUser());
+        profile.setStatus(UserStatus.DISABLED);
+        user.setEnabled(false);
+
+        employeeProfileRepository.save(profile);
+        userRepository.save(user);
     }
-//
-//    private String generateEmployeeCode() {
-//        return "HR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-//    }
 
     private EmployeeResponse mapToResponse(EmployeeProfile profile) {
         EmployeeResponse response = new EmployeeResponse();
@@ -145,8 +137,7 @@ public class EmployeeManagementService {
         response.setDesignation(profile.getDesignation());
         response.setEmployeeCode(profile.getEmployeeCode());
         response.setJoiningDate(profile.getJoiningDate());
-        response.setStatus(profile.getStatus().toString());
+        response.setStatus(profile.getStatus().name());
         return response;
     }
-
 }

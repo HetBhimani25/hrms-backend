@@ -8,7 +8,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "hr_profiles")
+@Table(name = "hr_profiles",
+        indexes = {
+                @Index(name="idx_employee_code_hr", columnList="employeeCode")
+        })
 @Getter
 @Setter
 public class HrProfile {
@@ -37,7 +40,7 @@ public class HrProfile {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private HrStatus status;
+    private UserStatus status;
 
     private Instant createdAt;
 
