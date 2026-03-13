@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface HrProfileRepository extends JpaRepository<HrProfile, Long> {
 
     Optional<HrProfile> findByUser(User user);
+    
+    Optional<HrProfile> findByUserEmail(String email);
 
     long countByStatus(UserStatus status);
 

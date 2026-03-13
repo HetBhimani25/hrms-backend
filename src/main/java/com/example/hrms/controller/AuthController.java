@@ -18,6 +18,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -109,13 +110,13 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public String logout(@RequestBody LogoutRequestDTO request) {
+    public Map<String, String> logout(@RequestBody LogoutRequestDTO request) {
 
         refreshTokenRepository
                 .findByToken(request.getRefreshToken())
                 .ifPresent(refreshTokenRepository::delete);
 
-        return "Logged out successfully";
+        return Map.of("message", "Logged out successfully");
     }
 
 }

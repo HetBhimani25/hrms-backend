@@ -9,13 +9,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.HashSet;
 import java.util.List;
 
 @Configuration
 public class DataInitializer {
 
     @Bean
-    CommandLineRunner initData(RoleRepository roleRepository,UserRepository userRepository,PasswordEncoder passwordEncoder) {
+    CommandLineRunner initData(RoleRepository roleRepository, UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {
             List<String> roles = List.of(
                     "ROLE_ADMIN",
@@ -35,15 +36,22 @@ public class DataInitializer {
 
             if (userRepository.findByEmail("admin@hrms.com").isEmpty()) {
 
+//                Role adminRole = roleRepository.findByRoleName("ROLE_ADMIN")
+//                        .orElseThrow(() ->
+//                                new IllegalStateException("ROLE_ADMIN not found after initialization"));
+
                 Role adminRole = roleRepository.findByRoleName("ROLE_ADMIN")
                         .orElseThrow(() ->
-                                new IllegalStateException("ROLE_ADMIN not found after initialization"));
+                                new IllegalStateException("ROLE_ADMIN not found"));
 
                 User admin = new User();
                 admin.setEmail("admin@hrms.com");
                 admin.setPassword(passwordEncoder.encode("Admin@123"));
                 admin.setEnabled(true);
-                admin.getRoles().add(adminRole);
+                admin.setRoles(new HashSet<>());
+                admin.getRoles().add(
+                        roleRepository.findByRoleName("ROLE_ADMIN").orElseThrow()
+                );
 
                 userRepository.save(admin);
 

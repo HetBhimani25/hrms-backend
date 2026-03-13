@@ -12,6 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.hrms.exception.BadRequestException;
+import com.example.hrms.exception.ResourceNotFoundException;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -28,10 +31,10 @@ public class EmployeeManagementService {
     public EmployeeResponse createEmployee(EmployeeCreateRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail()))
-            throw new RuntimeException("Email already exists");
+            throw new BadRequestException("Email already exists");
 
         Role employeeRole = roleRepository.findByRoleName("ROLE_EMPLOYEE")
-                .orElseThrow(() -> new RuntimeException("ROLE_EMPLOYEE not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("ROLE_EMPLOYEE not found"));
 
         User user = new User();
         user.setEmail(request.getEmail());
@@ -67,7 +70,7 @@ public class EmployeeManagementService {
     @Transactional(readOnly = true)
     public EmployeeResponse getEmployeeById(Long id) {
         EmployeeProfile profile = employeeProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         return mapToResponse(profile);
     }
@@ -75,15 +78,15 @@ public class EmployeeManagementService {
     public EmployeeResponse updateEmployee(Long employeeId, EmployeeUpdateRequest request) {
 
         EmployeeProfile profile = employeeProfileRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         if (!profile.getUser().getEmail().equals(request.getEmail())
                 && userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new BadRequestException("Email already exists");
         }
 
         if (profile.getStatus() != UserStatus.ACTIVE) {
-            throw new RuntimeException("Only ACTIVE employees can be updated");
+            throw new BadRequestException("Only ACTIVE employees can be updated");
         }
 
         profile.getUser().setEmail(request.getEmail());
@@ -101,7 +104,7 @@ public class EmployeeManagementService {
     public void disableEmployee(Long employeeId) {
 
         EmployeeProfile profile = employeeProfileRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         User user = profile.getUser();
 
@@ -115,7 +118,7 @@ public class EmployeeManagementService {
     public void deleteEmployee(Long id) {
 
         EmployeeProfile profile = employeeProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         User user = profile.getUser();
 

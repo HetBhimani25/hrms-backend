@@ -8,6 +8,8 @@ import java.util.Optional;
 public interface ManagerProfileRepository extends JpaRepository<ManagerProfile, Long> {
 
     Optional<ManagerProfile> findByUser(User user);
+    
+    Optional<ManagerProfile> findByUserEmail(String email);
 
     long countByStatus(UserStatus status);
 
