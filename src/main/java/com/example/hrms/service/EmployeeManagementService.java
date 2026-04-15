@@ -14,8 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.hrms.exception.BadRequestException;
 import com.example.hrms.exception.ResourceNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -60,11 +61,11 @@ public class EmployeeManagementService {
     }
 
     @Transactional(readOnly = true)
-    public List<EmployeeResponse> getAllEmployees() {
-        return employeeProfileRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+    public Page<EmployeeResponse> getAllEmployees(String search, Pageable pageable) {
+        if (search != null && !search.isBlank()) {
+            return employeeProfileRepository.findByFullNameContainingIgnoreCase(search, pageable).map(this::mapToResponse);
+        }
+        return employeeProfileRepository.findAll(pageable).map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)

@@ -8,7 +8,7 @@ import com.example.hrms.dto.response.LoginResponseDTO;
 import com.example.hrms.entity.RefreshToken;
 import com.example.hrms.entity.Role;
 import com.example.hrms.entity.User;
-import com.example.hrms.repository.RefreshTokenRepository;
+import com.example.hrms.repository.*;
 import com.example.hrms.security.JwtService;
 import com.example.hrms.service.RefreshTokenService;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,16 +28,45 @@ public class AuthController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final HrProfileRepository hrProfileRepository;
+    private final ManagerProfileRepository managerProfileRepository;
+    private final EmployeeProfileRepository employeeProfileRepository;
 
     public AuthController(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
-            RefreshTokenRepository refreshTokenRepository) {
+            RefreshTokenRepository refreshTokenRepository,
+            HrProfileRepository hrProfileRepository,
+            ManagerProfileRepository managerProfileRepository,
+            EmployeeProfileRepository employeeProfileRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.hrProfileRepository = hrProfileRepository;
+        this.managerProfileRepository = managerProfileRepository;
+        this.employeeProfileRepository = employeeProfileRepository;
+    }
+
+    private String getFullName(String email, List<String> roles) {
+        if (roles.contains("ROLE_ADMIN")) return "Administrator";
+        if (roles.contains("ROLE_HR")) {
+            return hrProfileRepository.findByUserEmail(email)
+                    .map(com.example.hrms.entity.HrProfile::getFullName)
+                    .orElse("HR User");
+        }
+        if (roles.contains("ROLE_MANAGER")) {
+            return managerProfileRepository.findByUserEmail(email)
+                    .map(com.example.hrms.entity.ManagerProfile::getFullName)
+                    .orElse("Manager");
+        }
+        if (roles.contains("ROLE_EMPLOYEE")) {
+            return employeeProfileRepository.findByUserEmail(email)
+                    .map(com.example.hrms.entity.EmployeeProfile::getFullName)
+                    .orElse("Employee");
+        }
+        return "User";
     }
 
     @PostMapping("/login")
@@ -72,7 +101,8 @@ public class AuthController {
         return new LoginResponseDTO(
                 accessToken,
                 refreshToken,
-                roles
+                roles,
+                getFullName(request.getEmail(), roles)
         );
     }
 
@@ -100,12 +130,15 @@ public class AuthController {
 
         String newAccessToken = jwtService.generateToken(userDetails);
 
+        List<String> rolesList = user.getRoles().stream()
+                .map(Role::getRoleName)
+                .toList();
+
         return new LoginResponseDTO(
                 newAccessToken,
                 refreshToken.getToken(),
-                user.getRoles().stream()
-                        .map(Role::getRoleName)
-                        .toList()
+                rolesList,
+                getFullName(user.getEmail(), rolesList)
         );
     }
 

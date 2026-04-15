@@ -6,8 +6,10 @@ import com.example.hrms.entity.*;
 import com.example.hrms.repository.*;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -18,6 +20,15 @@ public class LeaveManagementService {
     private final EmployeeProfileRepository employeeProfileRepository;
     private final ManagerProfileRepository managerProfileRepository;
     private final HrProfileRepository hrProfileRepository;
+    private final NotificationRepository notificationRepository;
+
+    private void sendNotification(User user, String msg) {
+        if (user == null) return;
+        Notification n = new Notification();
+        n.setUser(user);
+        n.setMessage(msg);
+        notificationRepository.save(n);
+    }
 
     public LeaveResponse applyLeave(LeaveCreateRequest request) {
 
@@ -40,12 +51,20 @@ public class LeaveManagementService {
 
         leaveRequestRepository.save(leave);
 
+        sendNotification(employee.getUser(), "Your leave application for " + request.getLeaveType() + " was successfully submitted. Status: PENDING.");
+        managerProfileRepository.findAll().forEach(m -> sendNotification(m.getUser(), "New leave request received from " + employee.getFullName()));
         return mapToResponse(leave);
     }
 
     public List<LeaveResponse> getAllLeaves() {
+        return leaveRequestRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
 
-        return leaveRequestRepository.findAll()
+    public List<LeaveResponse> getLeavesByEmployeeEmail(String email) {
+        return leaveRequestRepository.findByEmployee_User_Email(email)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -66,9 +85,12 @@ public class LeaveManagementService {
 
         leave.setApprovedByManager(manager);
         leave.setStatus(LeaveStatus.MANAGER_APPROVED);
+        leave.setManagerApprovedAt(Instant.now());
 
         leaveRequestRepository.save(leave);
 
+        sendNotification(leave.getEmployee().getUser(), "Your leave request was APPROVED by your Manager. Forwarded to HR.");
+        hrProfileRepository.findAll().forEach(hr -> sendNotification(hr.getUser(), "Leave request approved by Manager, awaiting HR finalization."));
         return mapToResponse(leave);
     }
 
@@ -87,9 +109,11 @@ public class LeaveManagementService {
 
         leave.setApprovedByManager(manager);
         leave.setStatus(LeaveStatus.REJECTED);
+        leave.setManagerApprovedAt(Instant.now());
 
         leaveRequestRepository.save(leave);
 
+        sendNotification(leave.getEmployee().getUser(), "Your leave request was REJECTED by your Manager.");
         return mapToResponse(leave);
     }
 
@@ -108,9 +132,11 @@ public class LeaveManagementService {
 
         leave.setApprovedByHr(hr);
         leave.setStatus(LeaveStatus.HR_APPROVED);
+        leave.setHrApprovedAt(Instant.now());
 
         leaveRequestRepository.save(leave);
 
+        sendNotification(leave.getEmployee().getUser(), "Congratulations! Your leave request was FULLY APPROVED by HR.");
         return mapToResponse(leave);
     }
 
@@ -129,9 +155,11 @@ public class LeaveManagementService {
 
         leave.setApprovedByHr(hr);
         leave.setStatus(LeaveStatus.REJECTED);
+        leave.setHrApprovedAt(Instant.now());
 
         leaveRequestRepository.save(leave);
 
+        sendNotification(leave.getEmployee().getUser(), "Your leave request was REJECTED by HR.");
         return mapToResponse(leave);
     }
 
@@ -146,6 +174,16 @@ public class LeaveManagementService {
         res.setEndDate(leave.getEndDate());
         res.setReason(leave.getReason());
         res.setStatus(leave.getStatus());
+        res.setCreatedAt(leave.getCreatedAt());
+
+        if (leave.getApprovedByManager() != null) {
+            res.setManagerName(leave.getApprovedByManager().getFullName());
+            res.setManagerApprovedAt(leave.getManagerApprovedAt());
+        }
+        if (leave.getApprovedByHr() != null) {
+            res.setHrName(leave.getApprovedByHr().getFullName());
+            res.setHrApprovedAt(leave.getHrApprovedAt());
+        }
 
         return res;
     }

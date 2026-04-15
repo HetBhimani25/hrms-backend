@@ -9,9 +9,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/hr")
@@ -21,7 +23,7 @@ public class AdminHrController {
 
     private final HrManagementService hrManagementService;
 
-    @PostMapping("/create")
+    @PostMapping
     public ResponseEntity<HrResponse> createHr(@Valid @RequestBody HrCreateRequest request) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -29,16 +31,30 @@ public class AdminHrController {
     }
 
     @GetMapping
-    public ResponseEntity<List<HrResponse>> getAllHr(){
-        return ResponseEntity.ok(hrManagementService.getAllHrs());
+    public ResponseEntity<Page<HrResponse>> getAllHr(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id,desc") String[] sort) {
+        
+        String[] sortParams = sort[0].split(",");
+        Sort sorting = Sort.by(sortParams[0]);
+        if (sortParams.length > 1 && sortParams[1].equalsIgnoreCase("desc")) {
+            sorting = sorting.descending();
+        } else if (sort.length > 1 && sort[1].equalsIgnoreCase("desc")) {
+            sorting = sorting.descending();
+        }
+        
+        Pageable pageable = PageRequest.of(page, size, sorting);
+        return ResponseEntity.ok(hrManagementService.getAllHrs(search, pageable));
     }
 
-    @GetMapping("/get/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<HrResponse> getHrById(@PathVariable Long id) {
         return ResponseEntity.ok(hrManagementService.getHrById(id));
     }
 
-    @PutMapping("/edit/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<HrResponse> updateHr(@PathVariable Long id,@Valid @RequestBody HrUpdateRequest request) {
         return ResponseEntity.ok(hrManagementService.updateHr(id, request));
     }
@@ -49,7 +65,7 @@ public class AdminHrController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteHr(@PathVariable Long id) {
         hrManagementService.deleteHr(id);
         return ResponseEntity.noContent().build();

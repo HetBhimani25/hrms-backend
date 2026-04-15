@@ -42,6 +42,10 @@ public class LeaveRequest {
     @Enumerated(EnumType.STRING)
     private LeaveStatus status;
 
+    private Instant managerApprovedAt;
+
+    private Instant hrApprovedAt;
+
     private Instant createdAt;
 
     private Instant updatedAt;

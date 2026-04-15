@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -24,4 +25,14 @@ public class LeaveResponse {
     private String reason;
 
     private LeaveStatus status;
+
+    private Instant createdAt;
+
+    private String managerName;
+
+    private Instant managerApprovedAt;
+
+    private String hrName;
+
+    private Instant hrApprovedAt;
 }

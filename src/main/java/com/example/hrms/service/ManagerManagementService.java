@@ -7,13 +7,15 @@ import com.example.hrms.entity.*;
 import com.example.hrms.repository.ManagerProfileRepository;
 import com.example.hrms.repository.RoleRepository;
 import com.example.hrms.repository.UserRepository;
+import com.example.hrms.exception.ResourceNotFoundException;
+import com.example.hrms.exception.BadRequestException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -31,9 +33,9 @@ public class ManagerManagementService {
         System.out.println("-- CREATE MANAGER API HIT --");
         System.out.println("Email: " + request.getEmail());
 
-        if (userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("Email already exists");
+        if (userRepository.existsByEmail(request.getEmail())) throw new BadRequestException("Email already exists");
 
-        Role managerRole = roleRepository.findByRoleName("ROLE_MANAGER").orElseThrow(() -> new RuntimeException("ROLE_MANAGER not found"));
+        Role managerRole = roleRepository.findByRoleName("ROLE_MANAGER").orElseThrow(() -> new ResourceNotFoundException("ROLE_MANAGER not found"));
 
         User user = new User();
         user.setEmail(request.getEmail());
@@ -53,8 +55,6 @@ public class ManagerManagementService {
         profile.setJoiningDate(request.getJoiningDate());
         profile.setEmployeeCode("MGR-" + UUID.randomUUID().toString().substring(0,8).toUpperCase());
         profile.setStatus(UserStatus.ACTIVE);
-        profile.setCreatedAt(Instant.now());
-        profile.setUpdatedAt(Instant.now());
 
         managerProfileRepository.save(profile);
         System.out.println("-- Manager profile saved with ID: " + profile.getId() + " --");
@@ -81,8 +81,11 @@ public class ManagerManagementService {
 
 
     @Transactional(readOnly = true)
-    public List<ManagerResponse> getAllManagers() {
-        return managerProfileRepository.findAll().stream().map(this::mapToResponse).toList();
+    public Page<ManagerResponse> getAllManagers(String search, Pageable pageable) {
+        if (search != null && !search.isBlank()) {
+            return managerProfileRepository.findByFullNameContainingIgnoreCase(search, pageable).map(this::mapToResponse);
+        }
+        return managerProfileRepository.findAll(pageable).map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -95,15 +98,15 @@ public class ManagerManagementService {
     public ManagerResponse updateManager(Long managerId, ManagerUpdateRequest request) {
 
         ManagerProfile profile = managerProfileRepository.findById(managerId)
-                .orElseThrow(() -> new RuntimeException("MANAGER not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("MANAGER not found"));
 
         if (!profile.getUser().getEmail().equals(request.getEmail())
                 && userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new BadRequestException("Email already exists");
         }
 
         if (profile.getStatus() == UserStatus.INACTIVE) {
-            throw new RuntimeException("Cannot update inactive MANAGER");
+            throw new BadRequestException("Cannot update inactive MANAGER");
         }
 
         profile.getUser().setEmail(request.getEmail());
@@ -111,7 +114,6 @@ public class ManagerManagementService {
         profile.setPhone(request.getPhone());
         profile.setDepartment(request.getDepartment());
         profile.setDesignation(request.getDesignation());
-        profile.setUpdatedAt(Instant.now());
 
         managerProfileRepository.save(profile);
         return mapToResponse(profile);
@@ -123,7 +125,6 @@ public class ManagerManagementService {
                 .orElseThrow(() -> new RuntimeException("MANAGER not found"));
 
         profile.setStatus(UserStatus.DISABLED);
-        profile.setUpdatedAt(Instant.now());
 
         User user = profile.getUser();
         user.setEnabled(false);

@@ -11,5 +11,6 @@ public class AdminDashboardResponse {
 
     private long totalHrs;
     private long totalManagers;
+    private long totalEmployees;
     private long activeEmployees;
 }

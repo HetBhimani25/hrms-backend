@@ -14,5 +14,6 @@ public class LoginResponseDTO {
     private String accessToken;
     private String refreshToken;
     private List<String> roles;
+    private String fullName;
 
 }

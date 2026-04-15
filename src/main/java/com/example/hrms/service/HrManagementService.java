@@ -7,13 +7,15 @@ import com.example.hrms.entity.*;
 import com.example.hrms.repository.HrProfileRepository;
 import com.example.hrms.repository.RoleRepository;
 import com.example.hrms.repository.UserRepository;
+import com.example.hrms.exception.ResourceNotFoundException;
+import com.example.hrms.exception.BadRequestException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -31,9 +33,9 @@ public class HrManagementService {
         System.out.println("-- CREATE HR API HIT --");
         System.out.println("Email: " + request.getEmail());
 
-        if (userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("Email already exists");
+        if (userRepository.existsByEmail(request.getEmail())) throw new BadRequestException("Email already exists");
 
-        Role hrRole = roleRepository.findByRoleName("ROLE_HR").orElseThrow(() -> new RuntimeException("ROLE_HR not found"));
+        Role hrRole = roleRepository.findByRoleName("ROLE_HR").orElseThrow(() -> new ResourceNotFoundException("ROLE_HR not found"));
 
         User user = new User();
         user.setEmail(request.getEmail());
@@ -57,8 +59,6 @@ public class HrManagementService {
         profile.setJoiningDate(request.getJoiningDate());
         profile.setEmployeeCode("HR-" + UUID.randomUUID().toString().substring(0,8).toUpperCase());
         profile.setStatus(UserStatus.ACTIVE);
-        profile.setCreatedAt(Instant.now());
-        profile.setUpdatedAt(Instant.now());
 
 //        HrProfile profile = new HrProfile();
 //        profile.setUser(user);
@@ -79,8 +79,11 @@ public class HrManagementService {
     }
 
     @Transactional(readOnly = true)
-    public List<HrResponse> getAllHrs() {
-        return hrProfileRepository.findAll().stream().map(this::mapToResponse).toList();
+    public Page<HrResponse> getAllHrs(String search, Pageable pageable) {
+        if (search != null && !search.isBlank()) {
+            return hrProfileRepository.findByFullNameContainingIgnoreCase(search, pageable).map(this::mapToResponse);
+        }
+        return hrProfileRepository.findAll(pageable).map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -93,15 +96,15 @@ public class HrManagementService {
     public HrResponse updateHr(Long hrId, HrUpdateRequest request) {
 
         HrProfile profile = hrProfileRepository.findById(hrId)
-                .orElseThrow(() -> new RuntimeException("HR not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("HR not found"));
 
         if (!profile.getUser().getEmail().equals(request.getEmail())
                 && userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new BadRequestException("Email already exists");
         }
 
         if (profile.getStatus() == UserStatus.INACTIVE) {
-            throw new RuntimeException("Cannot update inactive HR");
+            throw new BadRequestException("Cannot update inactive HR");
         }
 
         profile.getUser().setEmail(request.getEmail());
@@ -110,7 +113,6 @@ public class HrManagementService {
         profile.setDepartment(request.getDepartment());
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
-        profile.setUpdatedAt(Instant.now());
 
         hrProfileRepository.save(profile);
         return mapToResponse(profile);
@@ -121,9 +123,7 @@ public class HrManagementService {
         HrProfile profile = hrProfileRepository.findById(hrId)
                 .orElseThrow(() -> new RuntimeException("HR not found"));
 
-        profile.setStatus(UserStatus.DISABLED);
         profile.getUser().setEnabled(false);
-//        profile.setUpdatedAt(Instant.now());
 
         User user = profile.getUser();
         user.setEnabled(false);
