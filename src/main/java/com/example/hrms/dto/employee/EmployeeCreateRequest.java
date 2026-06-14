@@ -31,4 +31,5 @@ public class EmployeeCreateRequest {
     private String department;
     private String designation;
     private LocalDate joiningDate;
+    private Long managerId;
 }

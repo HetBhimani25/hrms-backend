@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin/hr")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")   
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminHrController {
 
     private final HrManagementService hrManagementService;
@@ -35,18 +35,21 @@ public class AdminHrController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id,desc") String[] sort) {
-        
-        String[] sortParams = sort[0].split(",");
-        Sort sorting = Sort.by(sortParams[0]);
-        if (sortParams.length > 1 && sortParams[1].equalsIgnoreCase("desc")) {
-            sorting = sorting.descending();
-        } else if (sort.length > 1 && sort[1].equalsIgnoreCase("desc")) {
-            sorting = sorting.descending();
-        }
-        
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
+
+        Sort sorting = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
         Pageable pageable = PageRequest.of(page, size, sorting);
-        return ResponseEntity.ok(hrManagementService.getAllHrs(search, pageable));
+
+        return ResponseEntity.ok(
+                hrManagementService.getAllHrs(search, pageable)
+        );
     }
 
     @GetMapping("/{id}")
@@ -55,14 +58,23 @@ public class AdminHrController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<HrResponse> updateHr(@PathVariable Long id,@Valid @RequestBody HrUpdateRequest request) {
+    public ResponseEntity<HrResponse> updateHr(
+            @PathVariable Long id,
+            @Valid @RequestBody HrUpdateRequest request) {
+
         return ResponseEntity.ok(hrManagementService.updateHr(id, request));
     }
 
     @PatchMapping("/{id}/disable")
-    public ResponseEntity<Void> disableHr(@PathVariable Long id) {
+    public ResponseEntity<?> disableHr(@PathVariable Long id) {
         hrManagementService.disableHr(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("HR disabled");
+    }
+
+    @PatchMapping("/{id}/enable")
+    public ResponseEntity<?> enableHr(@PathVariable Long id) {
+        hrManagementService.enableHr(id);
+        return ResponseEntity.ok("HR enabled");
     }
 
     @DeleteMapping("/{id}")
@@ -70,5 +82,4 @@ public class AdminHrController {
         hrManagementService.deleteHr(id);
         return ResponseEntity.noContent().build();
     }
-
 }

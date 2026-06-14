@@ -35,18 +35,21 @@ public class AdminManagerController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id,desc") String[] sort) {
-        
-        String[] sortParams = sort[0].split(",");
-        Sort sorting = Sort.by(sortParams[0]);
-        if (sortParams.length > 1 && sortParams[1].equalsIgnoreCase("desc")) {
-            sorting = sorting.descending();
-        } else if (sort.length > 1 && sort[1].equalsIgnoreCase("desc")) {
-            sorting = sorting.descending();
-        }
-        
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
+
+        Sort sorting = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
         Pageable pageable = PageRequest.of(page, size, sorting);
-        return ResponseEntity.ok(managerManagementService.getAllManagers(search, pageable));
+
+        return ResponseEntity.ok(
+                managerManagementService.getAllManagers(search, pageable)
+        );
     }
 
     @GetMapping("/{id}")
@@ -55,14 +58,20 @@ public class AdminManagerController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ManagerResponse> updateManager(@PathVariable Long id, @RequestBody ManagerUpdateRequest request) {
+    public ResponseEntity<ManagerResponse> updateManager(@PathVariable Long id,@Valid @RequestBody ManagerUpdateRequest request) {
         return ResponseEntity.ok(managerManagementService.updateManager(id, request));
     }
 
     @PatchMapping("/{id}/disable")
-    public ResponseEntity<Void> disableManager(@PathVariable Long id) {
+    public ResponseEntity<?> disableManager(@PathVariable Long id) {
         managerManagementService.disableManager(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Manager disabled");
+    }
+
+    @PatchMapping("/{id}/enable")
+    public ResponseEntity<?> enableManager(@PathVariable Long id) {
+        managerManagementService.enableManager(id);
+        return ResponseEntity.ok("Manager enabled");
     }
 
     @DeleteMapping("/{id}")

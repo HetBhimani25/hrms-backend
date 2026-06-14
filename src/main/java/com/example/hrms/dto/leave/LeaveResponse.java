@@ -35,4 +35,6 @@ public class LeaveResponse {
     private String hrName;
 
     private Instant hrApprovedAt;
+
+    private String department;
 }

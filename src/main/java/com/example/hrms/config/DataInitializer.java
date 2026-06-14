@@ -16,6 +16,7 @@ import java.util.List;
 public class DataInitializer {
 
     @Bean
+    @SuppressWarnings("unused")
     CommandLineRunner initData(RoleRepository roleRepository, UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {
             List<String> roles = List.of(
@@ -35,11 +36,6 @@ public class DataInitializer {
             }
 
             if (userRepository.findByEmail("admin@hrms.com").isEmpty()) {
-
-//                Role adminRole = roleRepository.findByRoleName("ROLE_ADMIN")
-//                        .orElseThrow(() ->
-//                                new IllegalStateException("ROLE_ADMIN not found after initialization"));
-
                 Role adminRole = roleRepository.findByRoleName("ROLE_ADMIN")
                         .orElseThrow(() ->
                                 new IllegalStateException("ROLE_ADMIN not found"));
@@ -49,9 +45,7 @@ public class DataInitializer {
                 admin.setPassword(passwordEncoder.encode("Admin@123"));
                 admin.setEnabled(true);
                 admin.setRoles(new HashSet<>());
-                admin.getRoles().add(
-                        roleRepository.findByRoleName("ROLE_ADMIN").orElseThrow()
-                );
+                admin.getRoles().add(adminRole);
 
                 userRepository.save(admin);
 

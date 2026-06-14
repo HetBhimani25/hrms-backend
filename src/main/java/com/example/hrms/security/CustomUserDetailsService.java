@@ -1,7 +1,9 @@
 package com.example.hrms.security;
 
 import com.example.hrms.entity.User;
+import com.example.hrms.entity.UserStatus;
 import com.example.hrms.repository.UserRepository;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (user.isDeleted() || user.getStatus() == UserStatus.INACTIVE) {
+            throw new DisabledException("Account is disabled or inactive");
+        }
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),

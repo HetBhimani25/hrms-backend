@@ -5,6 +5,7 @@ import com.example.hrms.dto.employee.EmployeeResponse;
 import com.example.hrms.dto.employee.EmployeeUpdateRequest;
 import com.example.hrms.entity.*;
 import com.example.hrms.repository.EmployeeProfileRepository;
+import com.example.hrms.repository.ManagerProfileRepository;
 import com.example.hrms.repository.RoleRepository;
 import com.example.hrms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import com.example.hrms.exception.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -27,12 +29,18 @@ public class EmployeeManagementService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final EmployeeProfileRepository employeeProfileRepository;
+    private final ManagerProfileRepository managerProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityLogService activityLogService;
 
     public EmployeeResponse createEmployee(EmployeeCreateRequest request) {
 
-        if (userRepository.existsByEmail(request.getEmail()))
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            if (user.isDeleted()) {
+                throw new BadRequestException("Employee with the email ->' " + request.getEmail() + " ' is already exists in system but deleted");
+            }
             throw new BadRequestException("Email already exists");
+        });
 
         Role employeeRole = roleRepository.findByRoleName("ROLE_EMPLOYEE")
                 .orElseThrow(() -> new ResourceNotFoundException("ROLE_EMPLOYEE not found"));
@@ -55,17 +63,32 @@ public class EmployeeManagementService {
         profile.setEmployeeCode("EMP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         profile.setStatus(UserStatus.ACTIVE);
 
+        if (request.getManagerId() != null) {
+            ManagerProfile manager = managerProfileRepository.findById(request.getManagerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found"));
+            profile.setReportingManager(manager);
+        }
+
         employeeProfileRepository.save(profile);
+        activityLogService.logActivity("Created new Employee: " + profile.getFullName(), "EMPLOYEE", "CREATE", profile.getFullName());
 
         return mapToResponse(profile);
     }
 
     @Transactional(readOnly = true)
-    public Page<EmployeeResponse> getAllEmployees(String search, Pageable pageable) {
-        if (search != null && !search.isBlank()) {
-            return employeeProfileRepository.findByFullNameContainingIgnoreCase(search, pageable).map(this::mapToResponse);
+    public Page<EmployeeResponse> getAllEmployees(String search, String department, Pageable pageable) {
+        if (search != null && !search.isBlank() && department != null && !department.isBlank()) {
+            return employeeProfileRepository.findByFullNameContainingIgnoreCaseAndDepartmentAndDeletedFalse(search, department, pageable)
+                    .map(this::mapToResponse);
+        } else if (search != null && !search.isBlank()) {
+            return employeeProfileRepository.findByFullNameContainingIgnoreCaseAndDeletedFalse(search, pageable)
+                    .map(this::mapToResponse);
+        } else if (department != null && !department.isBlank()) {
+            return employeeProfileRepository.findByDepartmentAndDeletedFalse(department, pageable)
+                    .map(this::mapToResponse);
         }
-        return employeeProfileRepository.findAll(pageable).map(this::mapToResponse);
+        return employeeProfileRepository.findByDeletedFalse(pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -81,9 +104,13 @@ public class EmployeeManagementService {
         EmployeeProfile profile = employeeProfileRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        if (!profile.getUser().getEmail().equals(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email already exists");
+        if (!profile.getUser().getEmail().equals(request.getEmail())) {
+            userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+                if (user.isDeleted()) {
+                    throw new BadRequestException("Employee with the email ->' " + request.getEmail() + " ' is already exists in system but deleted");
+                }
+                throw new BadRequestException("Email already exists");
+            });
         }
 
         if (profile.getStatus() != UserStatus.ACTIVE) {
@@ -98,6 +125,7 @@ public class EmployeeManagementService {
         profile.setJoiningDate(request.getJoiningDate());
 
         employeeProfileRepository.save(profile);
+        activityLogService.logActivity("Updated Employee details: " + profile.getFullName(), "EMPLOYEE", "UPDATE", profile.getFullName());
 
         return mapToResponse(profile);
     }
@@ -109,11 +137,13 @@ public class EmployeeManagementService {
 
         User user = profile.getUser();
 
-        profile.setStatus(UserStatus.DISABLED);
+        profile.setStatus(UserStatus.INACTIVE);
         user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
 
         employeeProfileRepository.save(profile);
         userRepository.save(user);
+        activityLogService.logActivity("Disabled Employee account: " + profile.getFullName(), "EMPLOYEE", "DISABLE", profile.getFullName());
     }
 
     public void deleteEmployee(Long id) {
@@ -123,11 +153,20 @@ public class EmployeeManagementService {
 
         User user = profile.getUser();
 
-        profile.setStatus(UserStatus.DISABLED);
+        profile.setStatus(UserStatus.INACTIVE);
+        profile.setDeleted(true);
         user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
+        user.setDeleted(true);
 
         employeeProfileRepository.save(profile);
         userRepository.save(user);
+        activityLogService.logActivity("Deleted Employee account: " + profile.getFullName(), "EMPLOYEE", "DELETE", profile.getFullName());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManagerProfile> getManagersByDepartment(String department) {
+        return managerProfileRepository.findByDepartmentAndStatus(department, UserStatus.ACTIVE);
     }
 
     private EmployeeResponse mapToResponse(EmployeeProfile profile) {
@@ -142,6 +181,11 @@ public class EmployeeManagementService {
         response.setEmployeeCode(profile.getEmployeeCode());
         response.setJoiningDate(profile.getJoiningDate());
         response.setStatus(profile.getStatus().name());
+
+        if (profile.getReportingManager() != null) {
+            response.setManagerId(profile.getReportingManager().getId());
+            response.setManagerName(profile.getReportingManager().getFullName());
+        }
         return response;
     }
 }

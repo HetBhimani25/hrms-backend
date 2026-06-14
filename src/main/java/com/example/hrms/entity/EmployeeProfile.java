@@ -25,6 +25,10 @@ public class EmployeeProfile {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private ManagerProfile reportingManager;
+
     private String fullName;
 
     @Column(length = 15)
@@ -38,6 +42,9 @@ public class EmployeeProfile {
     private String employeeCode;
 
     private LocalDate joiningDate;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean deleted = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -3,7 +3,9 @@ package com.example.hrms.controller.hr;
 import com.example.hrms.dto.employee.EmployeeCreateRequest;
 import com.example.hrms.dto.employee.EmployeeResponse;
 import com.example.hrms.dto.employee.EmployeeUpdateRequest;
+import com.example.hrms.dto.manager.ManagerResponse;
 import com.example.hrms.service.EmployeeManagementService;
+import com.example.hrms.service.ManagerManagementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class HrEmployeeController {
 
     private final EmployeeManagementService employeeManagementService;
+    private final ManagerManagementService managerManagementService;
 
     @PostMapping
     public ResponseEntity<EmployeeResponse> createEmployee(@Valid @RequestBody EmployeeCreateRequest request) {
@@ -33,20 +36,29 @@ public class HrEmployeeController {
     @GetMapping
     public ResponseEntity<Page<EmployeeResponse>> getAllEmployee(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String department,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id,desc") String[] sort) {
-        
-        String[] sortParams = sort[0].split(",");
-        Sort sorting = Sort.by(sortParams[0]);
-        if (sortParams.length > 1 && sortParams[1].equalsIgnoreCase("desc")) {
-            sorting = sorting.descending();
-        } else if (sort.length > 1 && sort[1].equalsIgnoreCase("desc")) {
-            sorting = sorting.descending();
-        }
-        
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
+
+        Sort sorting = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
         Pageable pageable = PageRequest.of(page, size, sorting);
-        return ResponseEntity.ok(employeeManagementService.getAllEmployees(search, pageable));
+
+        return ResponseEntity.ok(
+                employeeManagementService.getAllEmployees(search, department, pageable)
+        );
+    }
+
+    @GetMapping("/managers")
+    public ResponseEntity<java.util.List<ManagerResponse>> getManagersByDepartment(@RequestParam String department) {
+        return ResponseEntity.ok(managerManagementService.getManagersByDepartment(department));
     }
 
     @GetMapping("/{id}")

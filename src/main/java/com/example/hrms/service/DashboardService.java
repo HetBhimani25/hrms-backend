@@ -24,9 +24,9 @@ public class DashboardService {
 
     public AdminDashboardResponse getAdminDashboardStats() {
 
-        long totalHrs = hrProfileRepository.count();
-        long totalManagers = managerProfileRepository.count();
-        long totalEmployees = employeeProfileRepository.count();
+        long totalHrs = hrProfileRepository.countByDeletedFalse();
+        long totalManagers = managerProfileRepository.countByDeletedFalse();
+        long totalEmployees = employeeProfileRepository.countByDeletedFalse();
         long activeEmployees = employeeProfileRepository.countByStatus(UserStatus.ACTIVE);
 
         return new AdminDashboardResponse(

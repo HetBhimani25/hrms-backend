@@ -18,5 +18,6 @@ public class EmployeeResponse {
     private String employeeCode;
     private LocalDate joiningDate;
     private String status;
-
+    private Long managerId;
+    private String managerName;
 }

@@ -21,8 +21,10 @@ public class ManagerLeaveController {
     private final ManagerProfileRepository managerProfileRepository;
 
     @GetMapping
-    public List<LeaveResponse> getAllLeaves() {
-        return leaveManagementService.getAllLeaves();
+    public List<LeaveResponse> getAllLeaves(Authentication auth) {
+        ManagerProfile profile = managerProfileRepository.findByUserEmail(auth.getName())
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        return leaveManagementService.getLeavesByManager(profile.getId());
     }
 
     @PatchMapping("/{leaveId}/approve")

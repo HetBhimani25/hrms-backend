@@ -27,13 +27,19 @@ public class ManagerManagementService {
     private final RoleRepository roleRepository;
     private final ManagerProfileRepository managerProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityLogService activityLogService;
 
     public ManagerResponse createManager(ManagerCreateRequest request) {
 
         System.out.println("-- CREATE MANAGER API HIT --");
         System.out.println("Email: " + request.getEmail());
 
-        if (userRepository.existsByEmail(request.getEmail())) throw new BadRequestException("Email already exists");
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            if (user.isDeleted()) {
+                throw new BadRequestException("Manager with the email ->' " + request.getEmail() + " ' is already exists in system but deleted");
+            }
+            throw new BadRequestException("Email already exists");
+        });
 
         Role managerRole = roleRepository.findByRoleName("ROLE_MANAGER").orElseThrow(() -> new ResourceNotFoundException("ROLE_MANAGER not found"));
 
@@ -59,11 +65,13 @@ public class ManagerManagementService {
         managerProfileRepository.save(profile);
         System.out.println("-- Manager profile saved with ID: " + profile.getId() + " --");
 
+        activityLogService.logActivity("Created new Manager: " + profile.getFullName(), "MANAGER", "CREATE", profile.getFullName());
+
         return mapToResponse(profile);
 
     }
 
-    private ManagerResponse mapToResponse(ManagerProfile profile) {
+    public ManagerResponse mapToResponse(ManagerProfile profile) {
 
         ManagerResponse response = new ManagerResponse();
         response.setId(profile.getId());
@@ -83,9 +91,11 @@ public class ManagerManagementService {
     @Transactional(readOnly = true)
     public Page<ManagerResponse> getAllManagers(String search, Pageable pageable) {
         if (search != null && !search.isBlank()) {
-            return managerProfileRepository.findByFullNameContainingIgnoreCase(search, pageable).map(this::mapToResponse);
+            return managerProfileRepository.findByFullNameContainingIgnoreCaseAndDeletedFalse(search, pageable)
+                    .map(this::mapToResponse);
         }
-        return managerProfileRepository.findAll(pageable).map(this::mapToResponse);
+        return managerProfileRepository.findByDeletedFalse(pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -100,9 +110,13 @@ public class ManagerManagementService {
         ManagerProfile profile = managerProfileRepository.findById(managerId)
                 .orElseThrow(() -> new ResourceNotFoundException("MANAGER not found"));
 
-        if (!profile.getUser().getEmail().equals(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email already exists");
+        if (!profile.getUser().getEmail().equals(request.getEmail())) {
+            userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+                if (user.isDeleted()) {
+                    throw new BadRequestException("Manager with the email ->' " + request.getEmail() + " ' is already exists in system but deleted");
+                }
+                throw new BadRequestException("Email already exists");
+            });
         }
 
         if (profile.getStatus() == UserStatus.INACTIVE) {
@@ -114,8 +128,10 @@ public class ManagerManagementService {
         profile.setPhone(request.getPhone());
         profile.setDepartment(request.getDepartment());
         profile.setDesignation(request.getDesignation());
+        profile.setJoiningDate(request.getJoiningDate());
 
         managerProfileRepository.save(profile);
+        activityLogService.logActivity("Updated Manager details: " + profile.getFullName(), "MANAGER", "UPDATE", profile.getFullName());
         return mapToResponse(profile);
     }
 
@@ -124,15 +140,29 @@ public class ManagerManagementService {
         ManagerProfile profile = managerProfileRepository.findById(managerId)
                 .orElseThrow(() -> new RuntimeException("MANAGER not found"));
 
-        profile.setStatus(UserStatus.DISABLED);
-
         User user = profile.getUser();
+        profile.setStatus(UserStatus.INACTIVE);
         user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
 
         managerProfileRepository.save(profile);
         userRepository.save(user);
+        activityLogService.logActivity("Disabled Manager account: " + profile.getFullName(), "MANAGER", "DISABLE", profile.getFullName());
+    }
 
-//        profile.getUser().setEnabled(false);
+    public void enableManager(Long managerId) {
+        ManagerProfile profile =  managerProfileRepository.findById(managerId)
+                .orElseThrow(() -> new RuntimeException("MANAGER not found"));
+
+        User user = profile.getUser();
+        profile.setStatus(UserStatus.ACTIVE);
+        user.setEnabled(true);
+        user.setStatus(UserStatus.ACTIVE);
+
+        managerProfileRepository.save(profile);
+        userRepository.save(user);
+        activityLogService.logActivity("Enabled Manager account: " + profile.getFullName(), "MANAGER", "ENABLE", profile.getFullName());
+
     }
 
     public void deleteManager(Long id) {
@@ -142,11 +172,23 @@ public class ManagerManagementService {
 
         User user = profile.getUser();
 
-        profile.setStatus(UserStatus.DISABLED);
+        profile.setStatus(UserStatus.INACTIVE);
+        profile.setDeleted(true);
         user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
+        user.setDeleted(true);
 
         managerProfileRepository.save(profile);
         userRepository.save(user);
+        activityLogService.logActivity("Deleted Manager account: " + profile.getFullName(), "MANAGER", "DELETE", profile.getFullName());
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<ManagerResponse> getManagersByDepartment(String department) {
+        return managerProfileRepository.findByDepartmentAndStatus(department, UserStatus.ACTIVE)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 //
 //    private String generateEmployeeCode() {

@@ -27,13 +27,19 @@ public class HrManagementService {
     private final RoleRepository roleRepository;
     private final HrProfileRepository hrProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityLogService activityLogService;
 
     public HrResponse createHr(HrCreateRequest request) {
 
         System.out.println("-- CREATE HR API HIT --");
         System.out.println("Email: " + request.getEmail());
 
-        if (userRepository.existsByEmail(request.getEmail())) throw new BadRequestException("Email already exists");
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            if (user.isDeleted()) {
+                throw new BadRequestException("HR with the email ' " + request.getEmail() + " ' is already exists in system but deleted");
+            }
+            throw new BadRequestException("Email already exists");
+        });
 
         Role hrRole = roleRepository.findByRoleName("ROLE_HR").orElseThrow(() -> new ResourceNotFoundException("ROLE_HR not found"));
 
@@ -50,11 +56,7 @@ public class HrManagementService {
         profile.setUser(user);
         profile.setFullName(request.getFullName());
         profile.setPhone(request.getPhone());
-        profile.setDepartment(
-                request.getDepartment() == null || request.getDepartment().isBlank()
-                        ? "Human Resource"
-                        : request.getDepartment()
-        );
+        profile.setDepartment("Human Resource");
         profile.setDesignation(request.getDesignation());
         profile.setJoiningDate(request.getJoiningDate());
         profile.setEmployeeCode("HR-" + UUID.randomUUID().toString().substring(0,8).toUpperCase());
@@ -73,7 +75,9 @@ public class HrManagementService {
 //        profile.setUpdatedAt(Instant.now());
 
         hrProfileRepository.save(profile);
-        System.out.println("-- HR Profile saved --");
+        System.out.println("-- HR Profile saved with ID: " + profile.getId() + " --");
+
+        activityLogService.logActivity("Created new HR: " + profile.getFullName(), "HR", "CREATE", profile.getFullName());
 
         return mapToResponse(profile);
     }
@@ -81,9 +85,11 @@ public class HrManagementService {
     @Transactional(readOnly = true)
     public Page<HrResponse> getAllHrs(String search, Pageable pageable) {
         if (search != null && !search.isBlank()) {
-            return hrProfileRepository.findByFullNameContainingIgnoreCase(search, pageable).map(this::mapToResponse);
+            return hrProfileRepository.findByFullNameContainingIgnoreCaseAndDeletedFalse(search, pageable)
+                    .map(this::mapToResponse);
         }
-        return hrProfileRepository.findAll(pageable).map(this::mapToResponse);
+        return hrProfileRepository.findByDeletedFalse(pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -98,9 +104,13 @@ public class HrManagementService {
         HrProfile profile = hrProfileRepository.findById(hrId)
                 .orElseThrow(() -> new ResourceNotFoundException("HR not found"));
 
-        if (!profile.getUser().getEmail().equals(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email already exists");
+        if (!profile.getUser().getEmail().equals(request.getEmail())) {
+            userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+                if (user.isDeleted()) {
+                    throw new BadRequestException("HR with the email ->' " + request.getEmail() + " ' is already exists in system but deleted");
+                }
+                throw new BadRequestException("Email already exists");
+            });
         }
 
         if (profile.getStatus() == UserStatus.INACTIVE) {
@@ -115,23 +125,36 @@ public class HrManagementService {
         profile.setJoiningDate(request.getJoiningDate());
 
         hrProfileRepository.save(profile);
+        activityLogService.logActivity("Updated HR details: " + profile.getFullName(), "HR", "UPDATE", profile.getFullName());
         return mapToResponse(profile);
     }
 
     public void disableHr(Long hrId) {
-
         HrProfile profile = hrProfileRepository.findById(hrId)
                 .orElseThrow(() -> new RuntimeException("HR not found"));
 
-        profile.getUser().setEnabled(false);
-
         User user = profile.getUser();
+        profile.setStatus(UserStatus.INACTIVE);
         user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
 
         hrProfileRepository.save(profile);
         userRepository.save(user);
+        activityLogService.logActivity("Disabled HR account: " + profile.getFullName(), "HR", "DISABLE", profile.getFullName());
+    }
 
-//        profile.getUser().setEnabled(false);
+    public void enableHr(Long hrId) {
+        HrProfile profile = hrProfileRepository.findById(hrId)
+                .orElseThrow(() -> new RuntimeException("HR not found"));
+
+        User user = profile.getUser();
+        profile.setStatus(UserStatus.ACTIVE);
+        user.setEnabled(true);
+        user.setStatus(UserStatus.ACTIVE);
+
+        hrProfileRepository.save(profile);
+        userRepository.save(user);
+        activityLogService.logActivity("Enabled HR account: " + profile.getFullName(), "HR", "ENABLE", profile.getFullName());
     }
 
     public void deleteHr(Long id) {
@@ -140,11 +163,15 @@ public class HrManagementService {
                 .orElseThrow(() -> new RuntimeException("HR not found"));
 
         User user = profile.getUser();
-        profile.setStatus(UserStatus.DISABLED);
+        profile.setStatus(UserStatus.INACTIVE);
+        profile.setDeleted(true);
         user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
+        user.setDeleted(true);
 
         hrProfileRepository.save(profile);
         userRepository.save(user);
+        activityLogService.logActivity("Deleted HR account: " + profile.getFullName(), "HR", "DELETE", profile.getFullName());
     }
 //
 //    private String generateEmployeeCode() {

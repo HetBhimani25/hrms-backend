@@ -38,9 +38,12 @@ public class ManagerProfile {
 
     private LocalDate joiningDate;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean deleted = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus status;
+    private UserStatus status = UserStatus.ACTIVE;
 
     private Instant createdAt;
 

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface HrProfileRepository extends JpaRepository<HrProfile, Long> {
@@ -17,9 +18,15 @@ public interface HrProfileRepository extends JpaRepository<HrProfile, Long> {
 
     long countByStatus(UserStatus status);
 
+    long countByDeletedFalse();
+
     Optional<HrProfile> findByEmployeeCode(String employeeCode);
 
     Optional<HrProfile> findByIdAndStatus(Long id, UserStatus status);
 
-    Page<HrProfile> findByFullNameContainingIgnoreCase(String fullName, Pageable pageable);
+    Page<HrProfile> findByDeletedFalse(Pageable pageable);
+
+    Page<HrProfile> findByFullNameContainingIgnoreCaseAndDeletedFalse(String fullName, Pageable pageable);
+
+    List<HrProfile> findByDepartmentAndStatus(String department, UserStatus status);
 }

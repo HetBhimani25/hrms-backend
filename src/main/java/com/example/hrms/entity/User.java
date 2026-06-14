@@ -28,6 +28,13 @@ public class User {
 
     private boolean enabled = true;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean deleted = false;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false) //, columnDefinition = "varchar(255) default 'ACTIVE'")
+    private UserStatus status = UserStatus.ACTIVE;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",

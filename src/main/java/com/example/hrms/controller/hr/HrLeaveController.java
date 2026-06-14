@@ -21,7 +21,7 @@ public class HrLeaveController {
     private final HrProfileRepository hrProfileRepository;
 
     @GetMapping
-    public List<LeaveResponse> getAllLeaves() {
+    public List<LeaveResponse> getAllLeaves(Authentication auth) {
         return leaveManagementService.getAllLeaves();
     }
 
