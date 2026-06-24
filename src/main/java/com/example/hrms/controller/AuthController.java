@@ -21,6 +21,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import com.example.hrms.service.PasswordResetService;
+import com.example.hrms.dto.auth.ForgotPasswordRequest;
+import com.example.hrms.dto.auth.ResetPasswordRequest;
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -32,6 +37,7 @@ public class AuthController {
     private final HrProfileRepository hrProfileRepository;
     private final ManagerProfileRepository managerProfileRepository;
     private final EmployeeProfileRepository employeeProfileRepository;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(
             AuthenticationManager authenticationManager,
@@ -40,7 +46,8 @@ public class AuthController {
             RefreshTokenRepository refreshTokenRepository,
             HrProfileRepository hrProfileRepository,
             ManagerProfileRepository managerProfileRepository,
-            EmployeeProfileRepository employeeProfileRepository) {
+            EmployeeProfileRepository employeeProfileRepository,
+            PasswordResetService passwordResetService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
@@ -48,6 +55,7 @@ public class AuthController {
         this.hrProfileRepository = hrProfileRepository;
         this.managerProfileRepository = managerProfileRepository;
         this.employeeProfileRepository = employeeProfileRepository;
+        this.passwordResetService = passwordResetService;
     }
 
     private String getFullName(String email, List<String> roles) {

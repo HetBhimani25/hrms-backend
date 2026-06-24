@@ -32,8 +32,12 @@ public class User {
     private boolean deleted = false;
     
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false) //, columnDefinition = "varchar(255) default 'ACTIVE'")
+    @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
+
+    private String resetPasswordToken;
+
+    private java.time.Instant resetPasswordTokenExpiry;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
