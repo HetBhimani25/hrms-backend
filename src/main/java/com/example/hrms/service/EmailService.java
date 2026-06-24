@@ -1,34 +1,34 @@
 package com.example.hrms.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
-
     @Value("${hrms.mail.from:noreply@hrms.com}")
     private String fromEmail;
 
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    @Value("${SENDGRID_API_KEY:}")
+    private String sendGridApiKey;
 
     @Async
     public void sendPasswordResetEmail(String toEmail, String resetLink) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(toEmail);
-            helper.setSubject("Reset Your Password - HRMS");
+            if (sendGridApiKey == null || sendGridApiKey.trim().isEmpty()) {
+                System.err.println("SENDGRID_API_KEY is not set. Cannot send email to " + toEmail);
+                return;
+            }
 
             String htmlContent = String.format(
                     "<html><body style='font-family: Arial, sans-serif; color: #333;'>" +
@@ -44,10 +44,38 @@ public class EmailService {
                     resetLink
             );
 
-            helper.setText(htmlContent, true);
-            mailSender.send(message);
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "https://api.sendgrid.com/v3/mail/send";
 
-        } catch (MessagingException e) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(sendGridApiKey);
+
+            Map<String, Object> body = new HashMap<>();
+            
+            Map<String, Object> personalization = new HashMap<>();
+            personalization.put("to", List.of(Map.of("email", toEmail)));
+            personalization.put("subject", "Reset Your Password - HRMS");
+            body.put("personalizations", List.of(personalization));
+
+            body.put("from", Map.of("email", fromEmail));
+            
+            Map<String, String> content = new HashMap<>();
+            content.put("type", "text/html");
+            content.put("value", htmlContent);
+            body.put("content", List.of(content));
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Successfully sent password reset email to: " + toEmail);
+            } else {
+                System.err.println("Failed to send email. SendGrid responded with: " + response.getStatusCode());
+            }
+
+        } catch (Exception e) {
             System.err.println("Failed to send password reset email to: " + toEmail);
             e.printStackTrace();
         }
