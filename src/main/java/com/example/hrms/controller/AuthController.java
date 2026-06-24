@@ -215,4 +215,19 @@ public class AuthController {
         return Map.of("message", "Logged out successfully");
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/forgot-password")
+    public org.springframework.http.ResponseEntity<?> forgotPassword(@jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.example.hrms.dto.auth.ForgotPasswordRequest request) {
+        passwordResetService.processForgotPassword(request.getEmail());
+        return org.springframework.http.ResponseEntity.ok().body(Map.of("message", "If that email exists, a reset link has been sent."));
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/reset-password")
+    public org.springframework.http.ResponseEntity<?> resetPassword(@jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.example.hrms.dto.auth.ResetPasswordRequest request) {
+        try {
+            passwordResetService.processResetPassword(request.getToken(), request.getNewPassword());
+            return org.springframework.http.ResponseEntity.ok().body(Map.of("message", "Password reset successfully. You can now log in."));
+        } catch (RuntimeException e) {
+            return org.springframework.http.ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 }
