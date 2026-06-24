@@ -23,7 +23,6 @@ public class LeaveManagementService {
     private final EmployeeProfileRepository employeeProfileRepository;
     private final ManagerProfileRepository managerProfileRepository;
     private final HrProfileRepository hrProfileRepository;
-    private final EmailService emailService;
 
     public LeaveResponse applyLeave(LeaveCreateRequest request) {
 
@@ -120,8 +119,6 @@ public class LeaveManagementService {
 
         leaveRequestRepository.save(leave);
 
-        emailService.sendLeaveStatusEmail(leave.getEmployee(), leave, LeaveStatus.REJECTED, "Rejected by Manager.");
-
         return mapToResponse(leave);
     }
 
@@ -144,8 +141,6 @@ public class LeaveManagementService {
 
         leaveRequestRepository.save(leave);
 
-        emailService.sendLeaveStatusEmail(leave.getEmployee(), leave, LeaveStatus.HR_APPROVED, "Approved by HR.");
-
         return mapToResponse(leave);
     }
 
@@ -167,8 +162,6 @@ public class LeaveManagementService {
         leave.setHrApprovedAt(Instant.now());
 
         leaveRequestRepository.save(leave);
-
-        emailService.sendLeaveStatusEmail(leave.getEmployee(), leave, LeaveStatus.REJECTED, "Rejected by HR.");
 
         return mapToResponse(leave);
     }
