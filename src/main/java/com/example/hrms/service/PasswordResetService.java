@@ -20,7 +20,7 @@ public class PasswordResetService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value("${app.frontend.url:https://hrms-frontend-nine-psi.vercel.app}")
     private String frontendUrl;
 
     public void processForgotPassword(String email) {
